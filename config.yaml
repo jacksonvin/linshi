@@ -1,0 +1,237 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  // DNS
+  "dns": {
+    // DNS 服务器
+    "servers": [
+      // 广告 DNS
+      { "tag": "dns_block", "address": "rcode://success" },
+      // 国内 DNS
+      { "tag": "dns_direct", "address": "h3://dns.alidns.com/dns-query", "address_resolver": "dns_ip", "detour": "DIRECT" },
+      // IP 格式的 DNS
+      { "tag": "dns_ip", "address": "https://223.5.5.5/dns-query", "detour": "DIRECT" },
+      // FakeIP
+      { "tag": "dns_fakeip", "address": "fakeip" }
+    ],
+    // DNS 规则
+    "rules": [
+      { "outbound": "any", "server": "dns_ip" },
+      { "clash_mode": "Direct", "server": "dns_direct" },
+      { "clash_mode": "Global", "server": "dns_fakeip", "rewrite_ttl": 1 },
+      // `rule_set` 规则集中必须包含 `ads` 规则
+      { "rule_set": [ "ads" ], "server": "dns_block" },
+      // `rule_set` 规则集中必须包含以下规则
+      { "rule_set": [ "microsoft-cn", "apple-cn", "google-cn", "games-cn", "cn", "private", "lw-sb" ], "query_type": [ "A", "AAAA" ], "server": "dns_direct" },
+      // `rule_set` 规则集中必须包含 `proxy` 规则
+      { "rule_set": [ "proxy" ], "query_type": [ "A", "AAAA" ], "server": "dns_fakeip", "rewrite_ttl": 1 }
+    ],
+    // 默认 DNS 服务器，即上述 DNS 规则外的域名使用该 DNS 解析
+    "final": "dns_direct",
+    "strategy": "prefer_ipv4",
+    "independent_cache": true,
+    "reverse_mapping": true,
+    "fakeip": { "enabled": true, "inet4_range": "198.18.0.0/15", "inet6_range": "fc00::/18" }
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "mtu": 9000,
+      "inet4_address": "172.19.0.1/30",
+      "auto_route": true,
+      "strict_route": true,
+      "stack": "system",
+      "platform": {
+        "http_proxy": {
+          "enabled": true,
+          "server": "127.0.0.1",
+          "server_port": 2080
+        }
+      },
+      "sniff": true
+    },
+    {
+      "type": "mixed",
+      "listen": "127.0.0.1",
+      "listen_port": 2080,
+      "sniff": true
+    }
+  ],
+  // 出站
+  "outbounds": [
+    //节点选择
+    { "tag": "🌐 全局", "type": "selector", "outbounds": [ "auto", "🇭🇰 香港", "🦽 手动" ] },
+    { "tag": "🦽 手动", "type": "selector", "outbounds": [ "Edu香港3", "Edu香港2", "Edu(8443端口)香港8", "Edu香港4", "Edu香港5", "Edu香港1", "Edu香港6", "Edu香港7" ] },
+    { "tag": "auto", "type": "urltest", "outbounds": [ "Edu香港3", "Edu香港2", "Edu(8443端口)香港8", "Edu香港4", "Edu香港5", "Edu香港1", "Edu香港6", "Edu香港7" ], "url": "http://www.gstatic.com/generate_204", "interval": "2m0s", "tolerance": 50 },
+    { "tag": "🇭🇰 香港", "type": "urltest", "outbounds": [ "Edu香港3", "Edu香港2", "Edu(8443端口)香港8", "Edu香港4", "Edu香港5", "Edu香港1", "Edu香港6", "Edu香港7" ], "url": "http://www.gstatic.com/generate_204", "interval": "2m0s", "tolerance": 50 },
+    // 手动选择国家或地区节点；根据“国家或地区出站”的名称对 `outbounds` 值进行增删改，须一一对应
+    // 选择`🎯 全球直连`为测试本地网络（运营商网络速度和 IPv6 支持情况），可选择其它节点用于测试机场节点速度和 IPv6 支持情况
+    { "tag": "📈 网络测试", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "🐟 漏网之鱼", "type": "selector", "outbounds": [ "🌐 全局", "🎯 全球直连" ] },
+    { "tag": "🔗 直连域名", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "🪜 代理域名", "type": "selector", "outbounds": [ "🌐 全局", "🎯 全球直连" ] },
+    { "tag": "🎮 游戏平台", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "Ⓜ️ 微软服务", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "📢 谷歌服务", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "🍎 苹果服务", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "🇨🇳 国内 IP", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "📲 电报消息", "type": "selector", "outbounds": [ "🌐 全局" ] },
+    // 若使用 ShellCrash，由于无法判断本机进程（默认删除 `process_name` 规则），需删除此条 `🖥️ 直连软件`
+    { "tag": "🔒 私有网络", "type": "selector", "outbounds": [ "🎯 全球直连" ] },
+    { "tag": "🛑 广告拦截", "type": "selector", "outbounds": [ "REJECT" ] },
+    { "tag": "🎯 全球直连", "type": "selector", "outbounds": [ "DIRECT" ] },
+    { "tag": "GLOBAL", "type": "selector", "outbounds": [ "🎯 全球直连", "🌐 全局" ] },
+    { "tag": "REJECT", "type": "block" },
+    { "tag": "DIRECT", "type": "direct" },
+    { "tag": "dns-out", "type": "dns" },
+    //代理
+    { "tag": "Edu香港1","type":"vmess","server":"8.210.45.179","port":443,"cipher":"auto","uuid":"1d13bc34-637f-419e-92b6-aec9a1af85bd","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d2fg7wz35mpvlw.cloudfront.net","network":"ws","ws-opts":{"path":"/soledaday","headers":{"host":"d2fg7wz35mpvlw.cloudfront.net"}} },
+    { "tag": "Edu香港2","type":"vmess","server":"89.208.255.82","port":443,"cipher":"auto","uuid":"84dd264b-60d4-4bb3-839a-6b10a1f5d2ab","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d18cccxbjcj3sv.cloudfront.net","network":"ws","ws-opts":{"path":"/soledadays","headers":{"host":"d18cccxbjcj3sv.cloudfront.net"}} },
+    { "tag": "Edu香港3","type":"vmess","server":"13.35.66.65","port":443,"cipher":"auto","uuid":"cec0628f-e9a5-40a8-844d-1c980d66c06b","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d1xn5fedfjn826.cloudfront.net","network":"ws","ws-opts":{"path":"/soledadx","headers":{"host":"d1xn5fedfjn826.cloudfront.net"}} },
+    { "tag": "Edu香港4","type":"vmess","server":"103.117.101.23","port":443,"cipher":"auto","uuid":"12e5b8ad-0996-4b02-a4c9-10d0b28d897e","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d3d9bt1q2rvr0x.cloudfront.net","network":"ws","ws-opts":{"path":"/soledads","headers":{"host":"d3d9bt1q2rvr0x.cloudfront.net"}} },
+    { "tag": "Edu香港5","type":"vmess","server":"47.243.202.68","port":443,"cipher":"auto","uuid":"03089337-663e-4c1f-e836-9fc64865d37f","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d5f0pfnzrga9e.cloudfront.net","network":"ws","ws-opts":{"path":"/ifsoledad","headers":{"host":"d5f0pfnzrga9e.cloudfront.net"}} },
+    { "tag": "Edu香港6","type":"vmess","server":"23.247.139.66","port":443,"cipher":"auto","uuid":"990e62e4-c663-4553-b0f6-b57709963dc5","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d3q3gih1pfgkr3.cloudfront.net","network":"ws","ws-opts":{"path":"/soledadr","headers":{"host":"d3q3gih1pfgkr3.cloudfront.net"}} },
+    { "tag": "Edu香港7","type":"vmess","server":"129.227.153.9","port":443,"cipher":"auto","uuid":"4be1795d-605c-4a58-835d-569efb960572","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d1e9y9mk28oqew.cloudfront.net","network":"ws","ws-opts":{"path":"/ifsoledadr","headers":{"host":"d1e9y9mk28oqew.cloudfront.net"}} },
+    { "tag": "Edu(8443端口)香港8","type":"vmess","server":"168.63.212.103","port":443,"cipher":"auto","uuid":"5629d857-041f-4fa7-d666-d33b3de66e67","alterId":0,"tls":true,"skip-cert-verify":true,"servername":"d29pep333hcad3.cloudfront.net","network":"ws","ws-opts":{"path":"/ifsoledady","headers":{"host":"d29pep333hcad3.cloudfront.net"}} }
+    ],
+    // 路由
+  "route": {
+    // 规则
+    "rules": [
+      { "protocol": [ "dns" ], "outbound": "dns-out" },
+      { "clash_mode": "Direct", "outbound": "DIRECT" },
+      { "clash_mode": "Global", "outbound": "GLOBAL" },
+      // 自定义规则优先放前面
+      { "rule_set": [ "lw-sb" ], "outbound": "🔗 直连域名" },
+      { "rule_set": [ "ads" ], "outbound": "🛑 广告拦截" },
+      // 若使用 ShellCrash，由于无法判断本机进程（默认删除 `process_name` 规则），需删除此条 `rule_set`
+      // 为过滤 P2P 流量（BT 下载），可添加一条 `port_range` 规则（ShellCrash 会默认开启“只代理常用端口”，可忽略此项）
+      { "port_range": [ "6881:6889" ], "outbound": "🎯 全球直连"},
+      { "rule_set": [ "private" ], "outbound": "🔒 私有网络" },
+      { "rule_set": [ "microsoft-cn" ], "outbound": "Ⓜ️ 微软服务" },
+      { "rule_set": [ "apple-cn" ], "outbound": "🍎 苹果服务" },
+      { "rule_set": [ "google-cn" ], "outbound": "📢 谷歌服务" },
+      { "rule_set": [ "games-cn" ], "outbound": "🎮 游戏平台" },
+      { "rule_set": [ "networktest" ], "outbound": "📈 网络测试" },
+      { "rule_set": [ "proxy" ], "outbound": "🪜 代理域名" },
+      { "rule_set": [ "cn" ], "outbound": "🔗 直连域名" },
+      { "rule_set": [ "telegramip" ], "outbound": "📲 电报消息" },
+      { "rule_set": [ "privateip" ],  "outbound": "🔒 私有网络" },
+      { "rule_set": [ "cnip" ], "outbound": "🇨🇳 国内 IP" },
+      { "rule_set": [ "geosite-cn" ], "outbound": "🇨🇳 国内 IP" },
+      { "rule_set": [ "geoip-cn" ], "outbound": "🇨🇳 国内 IP" }
+    ],
+    // 规则集（binary 文件每天自动更新）
+    "rule_set": [
+      {
+        "tag": "ads",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/ads.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "private",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/private.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "microsoft-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/microsoft-cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "apple-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/apple-cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "google-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/google-cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "games-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/games-cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "networktest",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/networktest.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "proxy",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/proxy.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "telegramip",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/telegramip.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "privateip",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/privateip.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "cnip",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://mirror.ghproxy.com/https://github.com/DustinWin/ruleset_geodata/raw/sing-box-ruleset/cnip.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "geoip-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geoip/cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "tag": "geosite-cn",
+        "type": "remote",
+        "format": "binary",
+        "url": "https://testingcf.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@sing/geo/geosite/cn.srs",
+        "download_detour": "DIRECT"
+      },
+      {
+        "type": "remote",
+        "tag": "lw-sb",
+        "format": "source",
+        "url": "https://xsb.pp.ua/lw-sb.list",
+        "download_detour": "DIRECT"
+      }
+    ],
+    "final": "🐟 漏网之鱼",
+    "auto_detect_interface": true
+  }
+}
